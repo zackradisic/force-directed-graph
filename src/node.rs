@@ -1,22 +1,26 @@
+use std::mem::MaybeUninit;
+
 use bytemuck::{Pod, Zeroable};
-use cgmath::vec3;
 use wgpu::util::DeviceExt;
 
-use crate::{texture::Texture, Vertex, OPENGL_TO_WGPU_MATRIX, SAMPLE_COUNT};
+use crate::{texture::Texture, Vertex, SAMPLE_COUNT};
+
+pub const DEFAULT_INSTANCE_BUFFER_CAP: usize = 1024;
 
 pub struct NodeRenderPass {
-    nodes: Vec<Node>,
-    pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    instance_buffer: wgpu::Buffer,
+    pub nodes: Vec<Node>,
+    pub pipeline: wgpu::RenderPipeline,
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
+    pub instance_buffer: wgpu::Buffer,
 }
 
+#[derive(Debug)]
 pub struct Node {
-    size: cgmath::Vector2<f32>,
-    position: cgmath::Vector3<f32>,
-    rotation: cgmath::Quaternion<f32>,
-    color: cgmath::Vector4<f32>,
+    pub size: cgmath::Vector2<f32>,
+    pub position: cgmath::Vector3<f32>,
+    pub rotation: cgmath::Quaternion<f32>,
+    pub color: cgmath::Vector4<f32>,
 }
 
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
@@ -46,9 +50,11 @@ impl NodeRenderPass {
             position: [-1.0, 1.0],
         },
     ];
+
     pub fn new(
         nodes: Vec<Node>,
         device: &wgpu::Device,
+        queue: &wgpu::Queue,
         format: wgpu::TextureFormat,
         camera_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
@@ -111,15 +117,8 @@ impl NodeRenderPass {
             multiview: None,
         });
 
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Node Instance Buffer"),
-            contents: bytemuck::cast_slice(
-                &nodes.iter().map(Node::to_instance).collect::<Vec<_>>(),
-            ),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        });
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Node Vertex Buffer"),
+            label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(Self::VERTICES),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
@@ -129,6 +128,25 @@ impl NodeRenderPass {
             usage: wgpu::BufferUsages::INDEX,
         });
 
+        let mut instance_vec: Vec<MaybeUninit<NodeRaw>> = (0..DEFAULT_INSTANCE_BUFFER_CAP)
+            .map(|_| MaybeUninit::zeroed())
+            .collect();
+        for (i, node) in nodes.iter().enumerate() {
+            instance_vec[i] = MaybeUninit::new(node.to_instance());
+        }
+
+        let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Node Instance Buffer"),
+            size: (std::mem::size_of::<NodeRaw>() * DEFAULT_INSTANCE_BUFFER_CAP) as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        queue.write_buffer(
+            &instance_buffer,
+            0,
+            bytemuck::cast_slice(&nodes.iter().map(Node::to_instance).collect::<Vec<_>>()),
+        );
+
         Self {
             nodes,
             pipeline,
@@ -136,6 +154,33 @@ impl NodeRenderPass {
             index_buffer,
             instance_buffer,
         }
+    }
+
+    pub fn write(&mut self, queue: &wgpu::Queue) {
+        queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&self.nodes.iter().map(Node::to_instance).collect::<Vec<_>>()),
+        );
+    }
+
+    pub fn add_node(&mut self, node: Node, queue: &wgpu::Queue) {
+        let raw = node.to_instance();
+        let idx = self.nodes.len();
+        self.nodes.push(node);
+        queue.write_buffer(
+            &self.instance_buffer,
+            (idx * std::mem::size_of::<NodeRaw>()) as u64,
+            bytemuck::cast_slice(&[raw]),
+        )
+    }
+
+    pub fn update_node(&mut self, idx: u32, queue: &wgpu::Queue) {
+        queue.write_buffer(
+            &self.instance_buffer,
+            (idx as usize * std::mem::size_of::<NodeRaw>()) as u64,
+            bytemuck::cast_slice(&[self.nodes.get(idx as usize).unwrap().to_instance()]),
+        )
     }
 
     pub fn render<'a, 'b>(
@@ -171,6 +216,14 @@ impl Node {
         }
     }
 
+    pub fn intersects(&self, pos: &cgmath::Vector3<f32>) -> bool {
+        pos.x <= self.position.x + (self.size.x * 1.0)
+            && pos.x >= self.position.x - (self.size.x * 1.0)
+            && pos.y <= self.position.y + (self.size.y * 1.0)
+            && pos.y >= self.position.y - (self.size.y * 1.0)
+        // && self.position.x == pos.z
+    }
+
     pub fn to_instance(&self) -> NodeRaw {
         NodeRaw {
             model: (cgmath::Matrix4::from_translation(self.position)
@@ -199,5 +252,13 @@ impl NodeRaw {
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBUTES,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn size() {
+        println!("size: {}", std::mem::size_of::<super::NodeRaw>());
     }
 }

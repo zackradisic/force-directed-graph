@@ -1,7 +1,10 @@
 pub mod camera;
 pub mod edge;
+pub mod input;
 pub mod main_state;
+pub mod mouse;
 pub mod node;
+pub mod physics;
 pub mod texture;
 
 use bytemuck::{Pod, Zeroable};
@@ -21,6 +24,9 @@ pub const SAMPLE_COUNT: u8 = 4;
 // pub const SY: f32 = 1.0 / (HEIGHT * 2.0);
 // pub const SX: f32 = 1.0 / (WIDTH);
 // pub const SY: f32 = 1.0 / (HEIGHT);
+
+// For MacOS bc retina screens double the amount of pixels
+pub const SCREEN_SCALE: f32 = 2.0;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -107,6 +113,9 @@ pub fn run() {
 
     event_loop.run(move |event, _, control_flow| {
         match event {
+            Event::DeviceEvent { event, .. } => {
+                state.device_input(&event);
+            }
             Event::WindowEvent {
                 ref event,
                 window_id,

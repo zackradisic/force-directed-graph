@@ -32,13 +32,20 @@ impl Camera {
         translate: &cgmath::Matrix4<f32>,
         scale: &cgmath::Matrix4<f32>,
     ) -> cgmath::Matrix4<f32> {
-        let aspect_ratio = height / width;
+        // This makes x -1 -> 1 and y -1 -> 1
+        // let aspect_ratio = height / width;
         // OPENGL_TO_WGPU_MATRIX
         //     * cgmath::ortho(-1.0, 1.0, -aspect_ratio, aspect_ratio, 0.1, 100.0)
         //     * translate.invert().unwrap()
         //     * scale
+
+        // This makes the space x: -width/2 -> 0 -> width / 2 and y: -height/2 -> 0 -> height /2
         OPENGL_TO_WGPU_MATRIX
             * cgmath::ortho(
+                // -width / 2.0,
+                // width / 2.0,
+                // -height / 2.0,
+                // height / 2.0,
                 -width / 2.0,
                 width / 2.0,
                 -height / 2.0,
@@ -48,7 +55,6 @@ impl Camera {
             )
             * translate.invert().unwrap()
             * scale
-        // cgmath::ortho(-1.0, 1.0, -1.0, 1.0, 0.1, 100.0) * translate * scale
     }
 
     pub fn update_scale(&mut self, queue: &wgpu::Queue, scale: f32) {
@@ -105,7 +111,6 @@ impl Camera {
             &cgmath::Matrix4::from_scale(scale),
         );
 
-        println!("BRO: {:?}", view_proj * vec4(0.0, 0.0, 0.0, 1.0));
         let camera_raw = Self::to_raw(view_proj.clone(), width, height, scale);
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
