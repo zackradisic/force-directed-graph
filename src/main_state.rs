@@ -202,7 +202,7 @@ impl State {
                 vec.y -= self.camera.height / 2.0;
                 // vec.x *= 2.0;
                 vec.y *= -1.0;
-                // println!("CURSOR: {:?}", vec);
+                println!("CURSOR: {:?}", vec);
                 self.mouse.pos = Some(vec);
             }
             WindowEvent::KeyboardInput {

@@ -28,6 +28,7 @@ pub struct Node {
 pub struct NodeRaw {
     model: [[f32; 4]; 4],
     color: [f32; 4],
+    center: [f32; 3],
 }
 
 impl NodeRenderPass {
@@ -231,12 +232,13 @@ impl Node {
                 * cgmath::Matrix4::from(self.rotation))
             .into(),
             color: self.color.into(),
+            center: self.position.into(),
         }
     }
 }
 
 impl NodeRaw {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
+    const ATTRIBUTES: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
         // model matrix
         2 => Float32x4,
         3 => Float32x4,
@@ -244,6 +246,7 @@ impl NodeRaw {
         5 => Float32x4,
         // color
         6 => Float32x4,
+        7 => Float32x4
     ];
 
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {

@@ -173,7 +173,12 @@ pub fn run() {
                 let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
                 if now.as_millis() - start > 1000 {
                     let fps = frame as f64 / ((now.as_millis() - start) as f64 / 1000.0);
-                    window.set_title(&format!("{:.1$} fps", fps, 3));
+                    // window.set_title(&format!("{:.1$} fps", fps, 3));
+                    window.set_title(&format!(
+                        "{} fps — Nodes {}",
+                        fps,
+                        state.node_render_pass.nodes.len()
+                    ));
                 }
             }
             Event::MainEventsCleared => {
