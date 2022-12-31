@@ -7,7 +7,10 @@ pub mod node;
 pub mod physics;
 pub mod texture;
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use bytemuck::{Pod, Zeroable};
+use cgmath::Vector4;
 use main_state::State;
 use winit::{
     dpi::LogicalSize,
@@ -94,6 +97,9 @@ impl Vertex {
 }
 
 pub fn run() {
+    let mut frame: u128 = 0;
+    let mut start: u128 = 0;
+
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_inner_size(LogicalSize {
@@ -112,6 +118,13 @@ pub fn run() {
     let mut state = pollster::block_on(State::new(&window));
 
     event_loop.run(move |event, _, control_flow| {
+        if start == 0 {
+            start = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+        }
+
         match event {
             Event::DeviceEvent { event, .. } => {
                 state.device_input(&event);
@@ -156,6 +169,12 @@ pub fn run() {
                     // We're ignoring timeouts
                     Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
                 }
+                frame += 1;
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+                if now.as_millis() - start > 1000 {
+                    let fps = frame as f64 / ((now.as_millis() - start) as f64 / 1000.0);
+                    window.set_title(&format!("{:.1$} fps", fps, 3));
+                }
             }
             Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once, unless we manually
@@ -165,4 +184,68 @@ pub fn run() {
             _ => {}
         }
     });
+}
+
+pub struct ColorGenerator {
+    pub colors: Vec<Vector4<f32>>,
+    pub idx: usize,
+}
+
+impl ColorGenerator {
+    pub fn new() -> Self {
+        Self {
+            colors: vec![
+                Self::hex_to_rgba("5FB49C"),
+                Self::hex_to_rgba("F2B134"),
+                Self::hex_to_rgba("F93943"),
+                Self::hex_to_rgba("6EF9F5"),
+                Self::hex_to_rgba("B33C86"),
+                Self::hex_to_rgba("E4FF1A"),
+                Self::hex_to_rgba("FFB800"),
+                Self::hex_to_rgba("FF5714"),
+                Self::hex_to_rgba("FFEECF"),
+                Self::hex_to_rgba("4D9078"),
+                Self::hex_to_rgba("D5F2E3"),
+                Self::hex_to_rgba("FBF5F3"),
+                Self::hex_to_rgba("C6CAED"),
+                Self::hex_to_rgba("A288E3"),
+                Self::hex_to_rgba("CCFFCB"),
+            ],
+            idx: 0,
+        }
+    }
+
+    pub fn next(&mut self) -> Vector4<f32> {
+        let idx = self.idx % self.colors.len();
+        self.idx += 1;
+        self.colors[idx].clone()
+    }
+
+    fn hex_to_rgba(hex: &str) -> Vector4<f32> {
+        let mut hex = hex.to_string();
+        if hex.len() == 3 {
+            hex = format!(
+                "{}{}{}{}{}{}",
+                hex.chars().nth(0).unwrap(),
+                hex.chars().nth(0).unwrap(),
+                hex.chars().nth(1).unwrap(),
+                hex.chars().nth(1).unwrap(),
+                hex.chars().nth(2).unwrap(),
+                hex.chars().nth(2).unwrap()
+            );
+        }
+        let r = u8::from_str_radix(&hex[0..2], 16).unwrap();
+        let g = u8::from_str_radix(&hex[2..4], 16).unwrap();
+        let b = u8::from_str_radix(&hex[4..6], 16).unwrap();
+        // let a = u8::from_str_radix(&hex[6..8], 16).unwrap_or(255);
+        Vector4::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0)
+    }
+}
+
+impl Iterator for ColorGenerator {
+    type Item = Vector4<f32>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.next())
+    }
 }

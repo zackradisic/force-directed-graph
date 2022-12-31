@@ -1,19 +1,19 @@
-use cgmath::{vec2, vec3, Rotation3, SquareMatrix};
+use cgmath::{vec2, vec3, vec4, Rotation3, SquareMatrix};
 use winit::{
-    event::{DeviceEvent, ElementState, WindowEvent},
+    event::{DeviceEvent, ElementState, KeyboardInput, VirtualKeyCode, WindowEvent},
     window::Window,
 };
 
 use crate::{
     camera::Camera,
     edge::{Edge, EdgeRenderPass},
-    input::InputState,
+    input::{DragKind, InputState},
     mouse::Mouse,
     node::{Node, NodeRenderPass},
     physics::{self, Physics, DEFAULT_STRENGTH},
     screen_space_to_clip_space, screen_vec_to_clip_vec,
     texture::Texture,
-    SAMPLE_COUNT, SCREEN_SCALE,
+    ColorGenerator, SAMPLE_COUNT, SCREEN_SCALE,
 };
 
 pub struct State {
@@ -31,6 +31,7 @@ pub struct State {
     pub physics: Physics,
     pub mouse: Mouse,
     pub input: InputState, // pub edges: EdgeRenderPass,
+    pub color: ColorGenerator,
 }
 
 impl State {
@@ -59,6 +60,7 @@ impl State {
             .await
             .unwrap();
 
+        let mut color = ColorGenerator::new();
         let format = surface.get_supported_formats(&adapter)[3];
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -77,79 +79,89 @@ impl State {
         let depth_texture = Texture::create_depth_texture(&device, &config, SAMPLE_COUNT, "Depth");
         let msaa_texture = Texture::create_msaa_texture(&device, &config, "MSAA", SAMPLE_COUNT);
 
-        let nodes = NodeRenderPass::new(
-            vec![
-                Node::new(
-                    vec2(50.0, 50.0),
-                    (0.0, 0.0, 0.0),
-                    cgmath::Quaternion::from_axis_angle(
-                        cgmath::vec3(0.0, 0.0, 0.0),
-                        cgmath::Deg(0.0),
-                    ),
-                    (1.0, 1.0, 1.0, 1.0),
-                ),
-                Node::new(
-                    vec2(50.0, 50.0),
-                    (-50.0 * 2.0, 0.0, 0.0),
-                    cgmath::Quaternion::from_axis_angle(
-                        cgmath::vec3(0.0, 0.0, 0.0),
-                        cgmath::Deg(0.0),
-                    ),
-                    (1.0, 0.0, 1.0, 1.0),
-                ),
-                Node::new(
-                    vec2(50.0, 50.0),
-                    (50.0 * 2.0, 0.0, 0.0),
-                    cgmath::Quaternion::from_axis_angle(
-                        cgmath::vec3(0.0, 0.0, 0.0),
-                        cgmath::Deg(0.0),
-                    ),
-                    (1.0, 0.0, 0.0, 1.0),
-                ),
-                Node::new(
-                    vec2(50.0, 50.0),
-                    (50.0 * 2.0, -50.0 * 2.0, 0.0),
-                    cgmath::Quaternion::from_axis_angle(
-                        cgmath::vec3(0.0, 0.0, 0.0),
-                        cgmath::Deg(0.0),
-                    ),
-                    (0.0, 1.0, 0.0, 1.0),
-                ),
-            ],
+        // let nodes = vec![
+        //     Node::new(
+        //         vec2(50.0, 50.0),
+        //         (0.0, 0.0, 0.0),
+        //         cgmath::Quaternion::from_axis_angle(cgmath::vec3(0.0, 0.0, 0.0), cgmath::Deg(0.0)),
+        //         color.next(),
+        //     ),
+        //     Node::new(
+        //         vec2(50.0, 50.0),
+        //         (-50.0 * 2.0, 0.0, 0.0),
+        //         cgmath::Quaternion::from_axis_angle(cgmath::vec3(0.0, 0.0, 0.0), cgmath::Deg(0.0)),
+        //         color.next(),
+        //     ),
+        //     Node::new(
+        //         vec2(50.0, 50.0),
+        //         (50.0 * 2.0, 0.0, 0.0),
+        //         cgmath::Quaternion::from_axis_angle(cgmath::vec3(0.0, 0.0, 0.0), cgmath::Deg(0.0)),
+        //         color.next(),
+        //     ),
+        //     Node::new(
+        //         vec2(50.0, 50.0),
+        //         (50.0 * 2.0, -50.0 * 2.0, 0.0),
+        //         cgmath::Quaternion::from_axis_angle(cgmath::vec3(0.0, 0.0, 0.0), cgmath::Deg(0.0)),
+        //         color.next(),
+        //     ),
+        // ];
+        let nodes = vec![];
+        let node_render_pass = NodeRenderPass::new(
+            // nodes
+            //     .clone()
+            //     .into_iter()
+            //     .chain(nodes.clone().into_iter())
+            //     .chain(nodes.clone().into_iter())
+            //     .chain(nodes.clone().into_iter())
+            //     .map(|mut node| {
+            //         node.color = color.next();
+            //         node
+            //     })
+            //     .collect(),
+            nodes,
             &device,
             &queue,
             format,
             &camera_bind_group_layout,
         );
 
-        let edges = EdgeRenderPass::new(
-            vec![
-                Edge::from_nodes(
-                    (&nodes.nodes[0], 0),
-                    (&nodes.nodes[1], 1),
-                    cgmath::vec4(0.0, 1.0, 0.0, 1.0),
-                    10.0,
-                ),
-                Edge::from_nodes(
-                    (&nodes.nodes[1], 1),
-                    (&nodes.nodes[2], 2),
-                    cgmath::vec4(0.0, 1.0, 0.0, 1.0),
-                    10.0,
-                ),
-                Edge::from_nodes(
-                    (&nodes.nodes[0], 1),
-                    (&nodes.nodes[2], 2),
-                    cgmath::vec4(0.0, 1.0, 0.0, 1.0),
-                    10.0,
-                ),
-            ],
-            &device,
-            &queue,
-            format,
-            &camera_bind_group_layout,
-        );
+        // let edges = vec![
+        //     Edge::from_nodes(
+        //         (&node_render_pass.nodes[0], 0),
+        //         (&node_render_pass.nodes[1], 1),
+        //         cgmath::vec4(0.0, 1.0, 0.0, 1.0),
+        //         10.0,
+        //     ),
+        //     Edge::from_nodes(
+        //         (&node_render_pass.nodes[1], 1),
+        //         (&node_render_pass.nodes[2], 2),
+        //         cgmath::vec4(0.0, 1.0, 0.0, 1.0),
+        //         10.0,
+        //     ),
+        //     Edge::from_nodes(
+        //         (&node_render_pass.nodes[0], 1),
+        //         (&node_render_pass.nodes[2], 2),
+        //         cgmath::vec4(0.0, 1.0, 0.0, 1.0),
+        //         10.0,
+        //     ),
+        //     Edge::from_nodes(
+        //         (&node_render_pass.nodes[0], 0),
+        //         (&node_render_pass.nodes[2], 2),
+        //         cgmath::vec4(0.0, 1.0, 0.0, 1.0),
+        //         10.0,
+        //     ),
+        //     Edge::from_nodes(
+        //         (&node_render_pass.nodes[1], 1),
+        //         (&node_render_pass.nodes[4], 4),
+        //         cgmath::vec4(0.0, 1.0, 0.0, 1.0),
+        //         10.0,
+        //     ),
+        // ];
+        let edges = vec![];
+        let edge_render_pass =
+            EdgeRenderPass::new(edges, &device, &queue, format, &camera_bind_group_layout);
 
-        let physics = Physics::new(&nodes.nodes);
+        let physics = Physics::new(&node_render_pass.nodes);
 
         Self {
             surface,
@@ -160,11 +172,12 @@ impl State {
             depth_texture,
             msaa_texture,
             camera,
-            node_render_pass: nodes,
-            edge_render_pass: edges,
+            node_render_pass,
+            edge_render_pass,
             physics,
             mouse: Mouse::default(),
             input: InputState::default(),
+            color,
         }
     }
 
@@ -189,8 +202,40 @@ impl State {
                 vec.y -= self.camera.height / 2.0;
                 // vec.x *= 2.0;
                 vec.y *= -1.0;
-                println!("CURSOR: {:?}", vec);
+                // println!("CURSOR: {:?}", vec);
                 self.mouse.pos = Some(vec);
+            }
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state: element_state,
+                        virtual_keycode: Some(VirtualKeyCode::LControl),
+                        ..
+                    },
+                ..
+            } => {
+                let pressed = matches!(element_state, ElementState::Pressed);
+                self.input.is_ctrl_pressed = pressed;
+                if !pressed {
+                    self.input.dragging = None;
+                } else {
+                    self.input.dragging = self.input.dragging.map(|drag| match drag {
+                        DragKind::Node(node) => DragKind::EdgeCreation(node),
+                        other => other,
+                    });
+                }
+            }
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state: element_state,
+                        virtual_keycode: Some(VirtualKeyCode::LAlt),
+                        ..
+                    },
+                ..
+            } => {
+                let pressed = matches!(element_state, ElementState::Pressed);
+                self.input.is_lalt_pressed = pressed;
             }
             _ => (),
         }
@@ -207,37 +252,54 @@ impl State {
         self.node_render_pass.add_node(node, &self.queue)
     }
 
-    pub fn set_dragging(&mut self, dragging: Option<u32>) {
+    pub fn add_edge(&mut self, edge: Edge) {
+        self.edge_render_pass.add_edge(edge, &self.queue);
+    }
+
+    pub fn set_dragging(&mut self, dragging: Option<DragKind>) {
         self.input.dragging = dragging;
     }
 
     pub fn device_input(&mut self, event: &DeviceEvent) -> bool {
         match event {
             DeviceEvent::MouseMotion { delta } => {
-                if let Some(node) = self.input.dragging {
-                    self.node_render_pass.nodes[node as usize].position.x +=
-                        delta.0 as f32 * 2.0 * (1. / self.camera.scale);
-                    self.node_render_pass.nodes[node as usize].position.y += -delta.1 as f32
+                match self.input.dragging {
+                    Some(DragKind::Node(node)) => {
+                        self.node_render_pass.nodes[node as usize].position.x +=
+                            delta.0 as f32 * 2.0 * (1. / self.camera.scale);
+                        self.node_render_pass.nodes[node as usize].position.y += -delta.1 as f32
                         * 2.0
                         // * (self.camera.height / self.camera.width)
                         * (1. / self.camera.scale);
-                    self.node_render_pass.update_node(node, &self.queue);
-                    self.physics.objs[node as usize].x =
-                        self.node_render_pass.nodes[node as usize].position.x;
-                    self.physics.objs[node as usize].y =
-                        self.node_render_pass.nodes[node as usize].position.y;
+                        self.node_render_pass.update_node(node, &self.queue);
+                        self.physics.objs[node as usize].x =
+                            self.node_render_pass.nodes[node as usize].position.x;
+                        self.physics.objs[node as usize].y =
+                            self.node_render_pass.nodes[node as usize].position.y;
+                    }
+                    _ => (),
                 }
             }
             DeviceEvent::Button { state, .. } => match state {
                 ElementState::Pressed => {
                     if let Some(pos) = &self.mouse.pos {
                         let pos = pos / self.camera.scale;
-
-                        // let clip_pos =
-                        //     screen_space_to_clip_space(self.camera.width, self.camera.height, pos);
-                        // let clip_pos =
-                        //     self.camera.matrix.invert().unwrap() * clip_pos.extend(0.0).extend(1.0);
                         let pos3 = pos.extend(0.0);
+
+                        if self.input.is_lalt_pressed {
+                            let node = Node::new(
+                                (50.0, 50.0),
+                                pos.extend(0.0),
+                                cgmath::Quaternion::from_axis_angle(
+                                    cgmath::vec3(0.0, 0.0, 0.0),
+                                    cgmath::Deg(0.0),
+                                ),
+                                self.color.next(),
+                            );
+                            self.add_node(node);
+                            return false;
+                        }
+
                         if let Some((i, _)) = self
                             .node_render_pass
                             .nodes
@@ -245,23 +307,39 @@ impl State {
                             .enumerate()
                             .find(|(_, node)| node.intersects(&pos3))
                         {
-                            self.set_dragging(Some(i as u32));
+                            self.set_dragging(if self.input.is_ctrl_pressed {
+                                Some(DragKind::EdgeCreation(i as u32))
+                            } else {
+                                Some(DragKind::Node(i as u32))
+                            });
                             return false;
                         }
-
-                        let node = Node::new(
-                            (50.0, 50.0),
-                            pos.extend(0.0),
-                            cgmath::Quaternion::from_axis_angle(
-                                cgmath::vec3(0.0, 0.0, 0.0),
-                                cgmath::Deg(0.0),
-                            ),
-                            (0.0, 1.0, 1.0, 1.0),
-                        );
-                        self.add_node(node);
                     }
                 }
                 ElementState::Released => {
+                    match (self.input.dragging, self.mouse.pos) {
+                        (Some(DragKind::EdgeCreation(a)), Some(pos)) => {
+                            let pos = pos / self.camera.scale;
+                            let pos3 = pos.extend(0.0);
+                            if let Some((b, _)) = self
+                                .node_render_pass
+                                .nodes
+                                .iter()
+                                .enumerate()
+                                .find(|(_, node)| node.intersects(&pos3))
+                            {
+                                let edge = Edge::from_nodes(
+                                    (&self.node_render_pass.nodes[a as usize], a),
+                                    (&self.node_render_pass.nodes[b], b as u32),
+                                    vec4(0.0, 1.0, 0.0, 1.0),
+                                    10.0,
+                                );
+                                self.edge_render_pass.add_edge(edge, &self.queue);
+                            }
+                        }
+                        _ => (),
+                    }
+
                     self.set_dragging(None);
                 }
             },
@@ -285,7 +363,10 @@ impl State {
 
     pub fn update(&mut self) {
         self.physics.tick(
-            self.input.dragging,
+            self.input.dragging.and_then(|drag| match drag {
+                DragKind::Node(node) => Some(node),
+                _ => None,
+            }),
             &self.edge_render_pass.edges,
             &self.edge_render_pass.edge_map,
         );

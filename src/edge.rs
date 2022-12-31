@@ -10,6 +10,7 @@ pub const DEFAULT_INSTANCE_BUFFER_CAP: usize = 1024;
 
 pub struct EdgeRenderPass {
     pub edges: Vec<Edge>,
+    /// Maps node idx to edge indices
     pub edge_map: BTreeMap<u32, Vec<u32>>,
     pub pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: wgpu::Buffer,
@@ -178,6 +179,25 @@ impl EdgeRenderPass {
             0,
             bytemuck::cast_slice(&self.edges.iter().map(Edge::to_instance).collect::<Vec<_>>()),
         );
+    }
+
+    pub fn add_edge(&mut self, edge: Edge, queue: &wgpu::Queue) {
+        let raw = edge.to_instance();
+        let idx = self.edges.len();
+        self.edge_map
+            .entry(edge.a_id)
+            .or_insert_with(Vec::new)
+            .push(idx as u32);
+        self.edge_map
+            .entry(edge.b_id)
+            .or_insert_with(Vec::new)
+            .push(idx as u32);
+        self.edges.push(edge);
+        queue.write_buffer(
+            &self.instance_buffer,
+            (idx * std::mem::size_of::<EdgeRaw>()) as u64,
+            bytemuck::cast_slice(&[raw]),
+        )
     }
 
     pub fn render<'a, 'b>(

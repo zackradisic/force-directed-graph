@@ -15,7 +15,7 @@ pub struct NodeRenderPass {
     pub instance_buffer: wgpu::Buffer,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Node {
     pub size: cgmath::Vector2<f32>,
     pub position: cgmath::Vector3<f32>,
