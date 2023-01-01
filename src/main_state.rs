@@ -52,8 +52,15 @@ impl State {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::DEPTH_CLIP_CONTROL,
-                    limits: wgpu::Limits::default(),
+                    // features: wgpu::Features::DEPTH_CLIP_CONTROL,
+                    features: wgpu::Features::empty(),
+                    // WebGL doesn't support all of wgpu's features, so if
+                    // we're building for the web we'll have to disable some.
+                    limits: if cfg!(target_arch = "wasm32") {
+                        wgpu::Limits::downlevel_webgl2_defaults()
+                    } else {
+                        wgpu::Limits::default()
+                    },
                 },
                 None, // Trace path
             )
@@ -62,13 +69,14 @@ impl State {
 
         let mut color = ColorGenerator::new();
         let format = surface.get_supported_formats(&adapter)[3];
+        // let format = surface.get_supported_formats(&adapter)[0];
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::PostMultiplied,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
         surface.configure(&device, &config);
 

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pong with WASM</title>
+    <style>
+      canvas:focus {
+        border: none;
+        outline: none;
+        height: 100%;
+        width: 100%;
+      }
+      body {
+        display: flex;
+        justify-content: center;
+        justify-items: center;
+      }
+      html {
+        height: 100vh;
+        width: 100vw;
+      }
+    </style>
+  </head>
+
+  <!-- <body style="background-color: #14141C;"> -->
+  <body style="background-color: black" id="wasm-example">
+    <script type="module">
+      import init from "./pkg/force_graph_wgpu.js";
+      //   document.addEventListener('load', () => )
+      init().then(() => console.log("WASM LOADED!"));
+    </script>
+    <div id="wasm-example"></div>
+  </body>
+</html>

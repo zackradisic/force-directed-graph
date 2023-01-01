@@ -3,7 +3,8 @@ name = "force-graph-wgpu"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 anyhow = "1.0.68"
@@ -15,4 +16,15 @@ log = "0.4.17"
 pollster = "0.2.5"
 wgpu = "0.14.2"
 winit = "0.27.5"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+wgpu = { version="0.14.2", features=["webgl"]}
+wasm-bindgen = "0.2.83"
+wasm-bindgen-futures = "0.4.33"
+web-sys = { version="0.3.60", features = [
+    "Document",
+    "Window",
+    "Element",
+]}
 

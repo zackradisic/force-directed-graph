@@ -7,6 +7,9 @@ pub mod node;
 pub mod physics;
 pub mod texture;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bytemuck::{Pod, Zeroable};
@@ -96,6 +99,7 @@ impl Vertex {
     }
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub fn run() {
     let mut frame: u128 = 0;
     let mut start: u128 = 0;
@@ -114,6 +118,26 @@ pub fn run() {
         .with_resizable(true)
         .build(&event_loop)
         .unwrap();
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+        // Winit prevents sizing with CSS, so we have to set
+        // the size manually when on web.
+        use winit::dpi::PhysicalSize;
+        // window.set_inner_size(PhysicalSize::new(1600, 1200));
+
+        use winit::platform::web::WindowExtWebSys;
+        web_sys::window()
+            .and_then(|win| win.document())
+            .and_then(|doc| {
+                let dst = doc.get_element_by_id("wasm-example")?;
+                let canvas = web_sys::Element::from(window.canvas());
+                dst.append_child(&canvas).ok()?;
+                Some(())
+            })
+            .expect("Couldn't append canvas to document body.");
+    }
 
     let mut state = pollster::block_on(State::new(&window));
 
