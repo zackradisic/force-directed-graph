@@ -43,7 +43,6 @@ impl Physics {
         edge_map: &BTreeMap<u32, Vec<u32>>,
     ) {
         // self.alpha += (self.alpha_target - self.alpha) * self.alpha_decay;
-        // println!("ALPHA: {:?}", self.alpha);
         self.alpha = 1.0;
 
         let dragging = dragging.map(|x| x as usize).unwrap_or(usize::MAX);
@@ -97,20 +96,6 @@ impl Physics {
                     &self.objs[edge.a_id as usize]
                 };
 
-                // let mut dx = a.x - b.x;
-                // let mut dy = a.y - b.y;
-                // let mut dz = a.z - b.z;
-                // let mut l = (dx * dx + dy * dy + dz * dz).sqrt();
-                // l = (l - 30.0) / l * -a.strength;
-                // dx *= l;
-                // dy *= l;
-                // dz *= l;
-                // let a = &mut self.objs[node as usize];
-
-                // a.x -= dx;
-                // a.y -= dy;
-                // a.z -= dz;
-
                 let dx = a.x - b.x;
                 let dy = a.y - b.y;
                 let dz = a.z - b.z;
@@ -121,34 +106,6 @@ impl Physics {
                 if dist <= DEFAULT_MIN_DIST {
                     continue;
                 }
-
-                // let force_x = -a.strength * (dx / dist) * dx;
-                // let force_y = -a.strength * (dy / dist) * dy;
-                // let force_z = -a.strength * (dz / dist) * dz;
-                // let force = a.strength;
-                // let force_x = force * (dx / dist).log10();
-                // let force_y = force * (dy / dist).log10();
-                // let force_z = force * (dz / dist).log10();
-
-                // dist *= 0.0001;
-                // let force = -a.strength * dist;
-                // let force_x = force * dx;
-                // let force_y = force * dy;
-                // let force_z = force * dz;
-                // println!(
-                //     "WTF: {} {} {} dx={} dy={} dz={} force={} dist={}",
-                //     force_x, force_y, force_z, dx, dy, dz, force, dist
-                // );
-
-                // let force = dist / (a.strength);
-                // let force_x = dist / (force * dx);
-                // let force_y = dist / (force * dy);
-                // let force_z = dist / (force * dz);
-
-                // let force = -a.strength * (self.alpha / dist);
-                // let force_x = force * dx * (self.alpha / dist);
-                // let force_y = force * dy * (self.alpha / dist);
-                // let force_z = force * dz * (self.alpha / dist);
 
                 let dist = dist * 0.00001;
                 let force = -a.strength * dist;
@@ -164,13 +121,6 @@ impl Physics {
             }
         }
     }
-
-    // pub fn tick(&mut self, edges: &[Edge], edge_map: &BTreeMap<u32, Vec<u32>>) {
-    //     let len = self.objs.len();
-    //     for i in 0..len {
-    //         let obj = unsafe { self.objs.get_unchecked(i) };
-    //     }
-    // }
 
     pub fn apply(
         &self,

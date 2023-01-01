@@ -32,20 +32,8 @@ impl Camera {
         translate: &cgmath::Matrix4<f32>,
         scale: &cgmath::Matrix4<f32>,
     ) -> cgmath::Matrix4<f32> {
-        // This makes x -1 -> 1 and y -1 -> 1
-        // let aspect_ratio = height / width;
-        // OPENGL_TO_WGPU_MATRIX
-        //     * cgmath::ortho(-1.0, 1.0, -aspect_ratio, aspect_ratio, 0.1, 100.0)
-        //     * translate.invert().unwrap()
-        //     * scale
-
-        // This makes the space x: -width/2 -> 0 -> width / 2 and y: -height/2 -> 0 -> height /2
         OPENGL_TO_WGPU_MATRIX
             * cgmath::ortho(
-                // -width / 2.0,
-                // width / 2.0,
-                // -height / 2.0,
-                // height / 2.0,
                 -width / 2.0,
                 width / 2.0,
                 -height / 2.0,

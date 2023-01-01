@@ -23,13 +23,6 @@ use winit::{
 };
 
 pub const SAMPLE_COUNT: u8 = 4;
-// pub const WIDTH: f32 = 800.0;
-// pub const HEIGHT: f32 = 600.0;
-
-// pub const SX: f32 = 1.0 / (WIDTH * 2.0);
-// pub const SY: f32 = 1.0 / (HEIGHT * 2.0);
-// pub const SX: f32 = 1.0 / (WIDTH);
-// pub const SY: f32 = 1.0 / (HEIGHT);
 
 // For MacOS bc retina screens double the amount of pixels
 pub const SCREEN_SCALE: f32 = 2.0;
